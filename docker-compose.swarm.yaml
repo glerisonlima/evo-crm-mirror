@@ -1,0 +1,686 @@
+## ============================================================================
+## Evo CRM Community — stack de deploy (Portainer / Docker Swarm)
+##
+## Antes de subir a stack, ajuste os itens marcados abaixo. Tudo que NÃO está
+## comentado já vem pronto e não precisa ser alterado (imagens, portas, URLs
+## internas, nomes de rede/volume, etc.).
+##
+##   1. Domínios: troque SUBDOMAIN_API e SUBDOMAIN_FRONTEND pelos seus
+##      hostnames públicos (ex.: api.seudominio.com e crm.seudominio.com).
+##
+##   2. Segredos (seção 🔐): vêm VAZIOS de propósito. Gere cada valor UMA vez
+##      e repita o MESMO valor em TODOS os serviços que o usam — senão os
+##      serviços não se autenticam entre si. Mapeamento:
+##        - SECRET_KEY_BASE ......... auth, auth_sidekiq, crm, crm_sidekiq, core, processor
+##        - JWT_SECRET_KEY .......... auth, auth_sidekiq, crm, crm_sidekiq, core
+##        - EVOAI_CRM_API_TOKEN ..... auth, auth_sidekiq, crm, crm_sidekiq, processor
+##        - DOORKEEPER_JWT_SECRET_KEY  auth, auth_sidekiq
+##        - ENCRYPTION_KEY .......... core, processor
+##        - BOT_RUNTIME_SECRET ...... crm, crm_sidekiq, bot_runtime
+##        - AUTH_APIKEY_INTEGRATION_LOCAL  crm, crm_sidekiq, evoflow
+##        - CLICKHOUSE_PASSWORD ..... clickhouse, evoflow
+##        - RABBITMQ_DEFAULT_PASS ... rabbitmq, e dentro do RABBITMQ_URL do evoflow
+##
+##   3. Banco de dados: defina a senha do Postgres. Atenção: a mesma senha
+##      aparece como POSTGRES_PASSWORD (serviços Rails), DB_PASSWORD (core/Go)
+##      e dentro de POSTGRES_CONNECTION_STRING (processor/Python).
+##
+##   4. SMTP e S3: opcionais — preencha se for usar e-mail e/ou storage S3.
+##
+## Dependências externas (precisam existir antes do deploy):
+##   * rede   "evonet"
+##   * volume "evocrm_redis"
+##   * volume "evocrm_processor_logs"
+##   * um Postgres com a extensão pgvector acessível como host "pgvector"
+##     na rede "evonet"
+##
+## As imagens são puxadas do Docker Hub (evoapicloud/*).
+## ============================================================================
+
+services:
+
+## --------------------------- ORION --------------------------- ##
+
+  evocrm_gateway:
+    image: evoapicloud/evo-crm-gateway:latest
+
+    networks:
+      - evonet ## Nome da rede interna
+
+    environment:
+      - AUTH_UPSTREAM=evocrm_auth:3001
+      - CRM_UPSTREAM=evocrm_crm:3000
+      - CORE_UPSTREAM=evocrm_core:5555
+      - PROCESSOR_UPSTREAM=evocrm_processor:8000
+      - BOT_RUNTIME_UPSTREAM=evocrm_bot_runtime:8080
+
+    deploy:
+      placement:
+        constraints:
+          - node.role == manager
+      labels:
+        - traefik.enable=1
+        - traefik.docker.network=evonet ## Nome da rede interna
+        - traefik.http.routers.evocrm_gateway.rule=Host(`SUBDOMAIN_API`) ## Domínio público da API. Ex.: api.seudominio.com
+        - traefik.http.routers.evocrm_gateway.entrypoints=websecure
+        - traefik.http.routers.evocrm_gateway.priority=1
+        - traefik.http.routers.evocrm_gateway.tls.certresolver=letsencryptresolver
+        - traefik.http.routers.evocrm_gateway.service=evocrm_gateway
+        - traefik.http.services.evocrm_gateway.loadbalancer.server.port=3030
+        - traefik.http.services.evocrm_gateway.loadbalancer.passHostHeader=true
+
+## --------------------------- ORION --------------------------- ##
+
+  evocrm_auth:
+    image: evoapicloud/evo-auth-service-community:latest
+    command: bash -c "bundle exec rails db:migrate 2>&1 || echo 'Migration had errors, continuing...'; bundle exec rails s -p 3001 -b 0.0.0.0"
+
+    networks:
+      - evonet ## Nome da rede interna
+
+    environment:
+    ## ⚙️ Rails (ambiente)
+      - RAILS_ENV=production
+      - RAILS_MAX_THREADS=5
+
+    ## 🔐 Segredos e tokens — gere uma vez e repita o MESMO valor em todos os serviços
+      - SECRET_KEY_BASE=        # Chave secreta do Rails. Ex.: gere com "openssl rand -hex 64"
+      - JWT_SECRET_KEY=         # Segredo de assinatura dos JWT. Ex.: gere com "openssl rand -hex 32"
+      - EVOAI_CRM_API_TOKEN=    # Token interno entre CRM e serviços. Ex.: gere com "openssl rand -hex 32"
+
+    ## 🗄️ PostgreSQL
+      - POSTGRES_HOST=pgvector  # Host/serviço do Postgres na rede (dependência externa com pgvector)
+      - POSTGRES_PORT=5432
+      - POSTGRES_USERNAME=postgres
+      - POSTGRES_PASSWORD=      # Senha do seu Postgres (a mesma em todos os serviços)
+      - POSTGRES_DATABASE=evocrm
+      - POSTGRES_SSLMODE=disable
+
+    ## 🧊 Redis
+      - REDIS_URL=redis://evocrm_redis:6379/1
+
+    ## 🌐 URLs públicas e CORS — troque SUBDOMAIN_FRONTEND e SUBDOMAIN_API pelos seus domínios
+      - FRONTEND_URL=https://SUBDOMAIN_FRONTEND   # Ex.: https://crm.seudominio.com
+      - BACKEND_URL=https://SUBDOMAIN_API         # Ex.: https://api.seudominio.com
+      - CORS_ORIGINS=https://SUBDOMAIN_FRONTEND,https://SUBDOMAIN_API
+
+    ## ✉️ E-mail (Mailer + SMTP) — opcional, preencha se for enviar e-mails
+      - SMTP_DOMAIN=            # Ex.: seudominio.com
+      - MAILER_SENDER_EMAIL=    # Ex.: nao-responda@seudominio.com
+      - SMTP_USERNAME=          # Ex.: usuario@gmail.com
+      - SMTP_PASSWORD=          # Ex.: senha de app do provedor de e-mail
+      - SMTP_ADDRESS=           # Ex.: smtp.gmail.com
+      - SMTP_PORT=              # Ex.: 587
+      - SMTP_AUTHENTICATION=plain
+      - SMTP_ENABLE_STARTTLS_AUTO=true
+
+    ## 🛂 Doorkeeper (OAuth / JWT)
+      - DOORKEEPER_JWT_SECRET_KEY=   # Segredo do Doorkeeper. Ex.: gere com "openssl rand -hex 32"
+      - DOORKEEPER_JWT_ALGORITHM=hs256
+      - DOORKEEPER_JWT_ISS=evo-auth-service
+
+    ## 🔑 MFA e filas
+      - MFA_ISSUER=EvoCRM
+      - SIDEKIQ_CONCURRENCY=10
+
+    ## 🗂️ Storage — 'local' por padrão: mídia gravada em disco (volumes evocrm_storage / evoauth_storage).
+    ## Para usar S3/R2/MinIO externo, troque para s3_compatible e descomente/preencha as STORAGE_* abaixo.
+      - ACTIVE_STORAGE_SERVICE=local
+      - ACTIVE_STORAGE_URL=https://SUBDOMAIN_API   # URL publica p/ midia local (browser) = BACKEND_URL; gateway roteia /rails/active_storage -> CRM
+      # - ACTIVE_STORAGE_SERVICE=s3_compatible
+      # - STORAGE_BUCKET_NAME=meu-bucket
+      # - STORAGE_ACCESS_KEY_ID=
+      # - STORAGE_SECRET_ACCESS_KEY=
+      # - STORAGE_REGION=auto
+      # - STORAGE_ENDPOINT=https://xxxx.r2.cloudflarestorage.com
+
+      - OAUTH_TOKEN_EXPIRES_IN=28800
+
+    volumes:
+      - evoauth_storage:/app/storage
+    deploy:
+      placement:
+        constraints:
+          - node.role == manager
+
+## --------------------------- ORION --------------------------- ##
+
+  evocrm_auth_sidekiq:
+    image: evoapicloud/evo-auth-service-community:latest
+    command: ["bundle", "exec", "sidekiq", "-C", "config/sidekiq.yml"]
+
+    networks:
+      - evonet ## Nome da rede interna
+
+    environment:
+    ## ⚙️ Rails (ambiente)
+      - RAILS_ENV=production
+
+    ## 🔐 Segredos e tokens — use os MESMOS valores do serviço evocrm_auth
+      - SECRET_KEY_BASE=        # Mesmo valor de SECRET_KEY_BASE usado nos demais serviços
+      - JWT_SECRET_KEY=         # Mesmo valor de JWT_SECRET_KEY usado nos demais serviços
+      - EVOAI_CRM_API_TOKEN=    # Mesmo valor de EVOAI_CRM_API_TOKEN usado nos demais serviços
+
+    ## 🗄️ PostgreSQL
+      - POSTGRES_HOST=pgvector
+      - POSTGRES_PORT=5432
+      - POSTGRES_USERNAME=postgres
+      - POSTGRES_PASSWORD=      # Senha do seu Postgres (a mesma em todos os serviços)
+      - POSTGRES_DATABASE=evocrm
+      - POSTGRES_SSLMODE=disable
+
+    ## 🧊 Redis
+      - REDIS_URL=redis://evocrm_redis:6379/1
+
+    ## 🌐 URLs públicas e CORS — troque SUBDOMAIN_FRONTEND e SUBDOMAIN_API pelos seus domínios
+      - FRONTEND_URL=https://SUBDOMAIN_FRONTEND
+      - BACKEND_URL=https://SUBDOMAIN_API
+      - CORS_ORIGINS=https://SUBDOMAIN_FRONTEND,https://SUBDOMAIN_API
+
+    ## ✉️ E-mail (Mailer + SMTP) — opcional, preencha se for enviar e-mails
+      - SMTP_DOMAIN=            # Ex.: seudominio.com
+      - MAILER_SENDER_EMAIL=    # Ex.: nao-responda@seudominio.com
+      - SMTP_USERNAME=          # Ex.: usuario@gmail.com
+      - SMTP_PASSWORD=          # Ex.: senha de app do provedor de e-mail
+      - SMTP_ADDRESS=           # Ex.: smtp.gmail.com
+      - SMTP_PORT=              # Ex.: 587
+      - SMTP_AUTHENTICATION=plain
+      - SMTP_ENABLE_STARTTLS_AUTO=true
+
+    ## 🛂 Doorkeeper (OAuth / JWT)
+      - DOORKEEPER_JWT_SECRET_KEY=   # Mesmo valor usado no serviço evocrm_auth
+      - DOORKEEPER_JWT_ALGORITHM=hs256
+      - DOORKEEPER_JWT_ISS=evo-auth-service
+
+    ## 🔑 MFA e filas
+      - MFA_ISSUER=EvoCRM
+      - SIDEKIQ_CONCURRENCY=10
+
+    ## 🗂️ Storage — 'local' por padrão: mídia gravada em disco (volumes evocrm_storage / evoauth_storage).
+    ## Para usar S3/R2/MinIO externo, troque para s3_compatible e descomente/preencha as STORAGE_* abaixo.
+      - ACTIVE_STORAGE_SERVICE=local
+      - ACTIVE_STORAGE_URL=https://SUBDOMAIN_API   # URL publica p/ midia local (browser) = BACKEND_URL; gateway roteia /rails/active_storage -> CRM
+      # - ACTIVE_STORAGE_SERVICE=s3_compatible
+      # - STORAGE_BUCKET_NAME=meu-bucket
+      # - STORAGE_ACCESS_KEY_ID=
+      # - STORAGE_SECRET_ACCESS_KEY=
+      # - STORAGE_REGION=auto
+      # - STORAGE_ENDPOINT=https://xxxx.r2.cloudflarestorage.com
+
+      - OAUTH_TOKEN_EXPIRES_IN=28800
+
+    healthcheck:
+      disable: true
+
+    volumes:
+      - evoauth_storage:/app/storage
+    deploy:
+      placement:
+        constraints:
+          - node.role == manager
+
+## --------------------------- ORION --------------------------- ##
+
+  evocrm_crm:
+    image: evoapicloud/evo-ai-crm-community:latest
+    command: sh -c "until wget -qO- http://evocrm_auth:3001/health >/dev/null 2>&1; do echo 'Waiting for auth...'; sleep 5; done; bundle exec rails db:migrate 2>&1 || echo 'Migration had errors, continuing...'; bundle exec rails s -p 3000 -b 0.0.0.0"
+
+    networks:
+      - evonet ## Nome da rede interna
+
+    environment:
+    ## ⚙️ Rails (ambiente e logs)
+      - RAILS_ENV=production
+      - RAILS_SERVE_STATIC_FILES=true
+      - RAILS_LOG_TO_STDOUT=true
+
+    ## 🔐 Segredos e tokens — use os MESMOS valores dos demais serviços
+      - SECRET_KEY_BASE=        # Mesmo valor de SECRET_KEY_BASE usado nos demais serviços
+      - JWT_SECRET_KEY=         # Mesmo valor de JWT_SECRET_KEY usado nos demais serviços
+      - EVOAI_CRM_API_TOKEN=    # Mesmo valor de EVOAI_CRM_API_TOKEN usado nos demais serviços
+
+    ## 🗄️ PostgreSQL
+      - POSTGRES_HOST=pgvector
+      - POSTGRES_PORT=5432
+      - POSTGRES_USERNAME=postgres
+      - POSTGRES_PASSWORD=      # Senha do seu Postgres (a mesma em todos os serviços)
+      - POSTGRES_DATABASE=evocrm
+      - POSTGRES_SSLMODE=disable
+
+    ## 🧊 Redis
+      - REDIS_URL=redis://evocrm_redis:6379/1
+
+    ## 🔗 Serviços internos (Auth + Core)
+      - EVO_AUTH_SERVICE_URL=http://evocrm_auth:3001
+      - EVO_AI_CORE_SERVICE_URL=http://evocrm_core:5555
+
+    ## 🔀 EvoFlow (tela de Segments + tracking de eventos do contato) — porta 3334
+    ## Sem estas 4 variáveis o CRM levanta EvoFlow::ConfigurationError e /api/v1/segments responde 500.
+    ## EVO_FLOW_ALLOW_INSECURE=true é obrigatório aqui: RAILS_ENV=production + URL http:// na rede interna.
+      - EVO_FLOW_ENABLED=true
+      - EVO_FLOW_API_URL=http://evocrm_evoflow:3334/api/v1
+      - AUTH_APIKEY_INTEGRATION_LOCAL=    # Chave compartilhada CRM <-> evo-flow (o MESMO valor em crm, crm_sidekiq e evoflow). Ex.: gere com "openssl rand -hex 32"
+      - EVO_FLOW_ALLOW_INSECURE=true
+
+    ## 🌐 URLs públicas e CORS — troque SUBDOMAIN_FRONTEND e SUBDOMAIN_API pelos seus domínios
+      - BACKEND_URL=https://SUBDOMAIN_API
+      - FRONTEND_URL=https://SUBDOMAIN_FRONTEND
+      - CORS_ORIGINS=https://SUBDOMAIN_FRONTEND,https://SUBDOMAIN_API
+
+    ## 📊 Telemetria e logs
+      - DISABLE_TELEMETRY=true
+      - LOG_LEVEL=info
+
+    ## ✨ Funcionalidades da aplicação
+      - ENABLE_ACCOUNT_SIGNUP=true
+      - ENABLE_PUSH_RELAY_SERVER=true
+      - ENABLE_INBOX_EVENTS=true
+
+    ## 🤖 Bot runtime
+      - BOT_RUNTIME_URL=http://evocrm_bot_runtime:8080
+      - BOT_RUNTIME_SECRET=     # Segredo do bot runtime (o mesmo em crm, crm_sidekiq e bot_runtime). Ex.: "openssl rand -hex 32"
+      - BOT_RUNTIME_POSTBACK_BASE_URL=http://evocrm_crm:3000
+
+    ## 🗂️ Storage — 'local' por padrão: mídia gravada em disco (volumes evocrm_storage / evoauth_storage).
+    ## Para usar S3/R2/MinIO externo, troque para s3_compatible e descomente/preencha as STORAGE_* abaixo.
+      - ACTIVE_STORAGE_SERVICE=local
+      - ACTIVE_STORAGE_URL=https://SUBDOMAIN_API   # URL publica p/ midia local (browser) = BACKEND_URL; gateway roteia /rails/active_storage -> CRM
+      # - ACTIVE_STORAGE_SERVICE=s3_compatible
+      # - STORAGE_BUCKET_NAME=meu-bucket
+      # - STORAGE_ACCESS_KEY_ID=
+      # - STORAGE_SECRET_ACCESS_KEY=
+      # - STORAGE_REGION=auto
+      # - STORAGE_ENDPOINT=https://xxxx.r2.cloudflarestorage.com
+
+    volumes:
+      - evocrm_storage:/app/storage
+    deploy:
+      placement:
+        constraints:
+          - node.role == manager
+
+## --------------------------- ORION --------------------------- ##
+
+  evocrm_crm_sidekiq:
+    image: evoapicloud/evo-ai-crm-community:latest
+    command: ["bundle", "exec", "sidekiq", "-C", "config/sidekiq.yml"]
+
+    networks:
+      - evonet ## Nome da rede interna
+
+    environment:
+    ## ⚙️ Rails (ambiente)
+      - RAILS_ENV=production
+
+    ## 🔐 Segredos e tokens — use os MESMOS valores dos demais serviços
+      - SECRET_KEY_BASE=        # Mesmo valor de SECRET_KEY_BASE usado nos demais serviços
+      - JWT_SECRET_KEY=         # Mesmo valor de JWT_SECRET_KEY usado nos demais serviços
+      - EVOAI_CRM_API_TOKEN=    # Mesmo valor de EVOAI_CRM_API_TOKEN usado nos demais serviços
+
+    ## 🗄️ PostgreSQL
+      - POSTGRES_HOST=pgvector
+      - POSTGRES_PORT=5432
+      - POSTGRES_USERNAME=postgres
+      - POSTGRES_PASSWORD=      # Senha do seu Postgres (a mesma em todos os serviços)
+      - POSTGRES_DATABASE=evocrm
+      - POSTGRES_SSLMODE=disable
+
+    ## 🧊 Redis
+      - REDIS_URL=redis://evocrm_redis:6379/1
+
+    ## 🔗 Serviços internos (Auth + Core)
+      - EVO_AUTH_SERVICE_URL=http://evocrm_auth:3001
+      - EVO_AI_CORE_SERVICE_URL=http://evocrm_core:5555
+
+    ## 🔀 EvoFlow — o sidekiq emite os eventos de tracking; mesmos valores do evocrm_crm.
+      - EVO_FLOW_ENABLED=true
+      - EVO_FLOW_API_URL=http://evocrm_evoflow:3334/api/v1
+      - AUTH_APIKEY_INTEGRATION_LOCAL=    # Mesmo valor de AUTH_APIKEY_INTEGRATION_LOCAL usado no evocrm_crm e evocrm_evoflow
+      - EVO_FLOW_ALLOW_INSECURE=true
+
+    ## 🌐 URLs públicas e CORS — troque SUBDOMAIN_FRONTEND e SUBDOMAIN_API pelos seus domínios
+      - BACKEND_URL=https://SUBDOMAIN_API
+      - FRONTEND_URL=https://SUBDOMAIN_FRONTEND
+      - CORS_ORIGINS=https://SUBDOMAIN_FRONTEND,https://SUBDOMAIN_API
+
+    ## 🤖 Bot runtime
+      - BOT_RUNTIME_URL=http://evocrm_bot_runtime:8080
+      - BOT_RUNTIME_SECRET=     # Mesmo valor de BOT_RUNTIME_SECRET usado no evocrm_crm e bot_runtime
+      - BOT_RUNTIME_POSTBACK_BASE_URL=http://evocrm_crm:3000
+
+    ## 🗂️ Storage — 'local' por padrão: mídia gravada em disco (volumes evocrm_storage / evoauth_storage).
+    ## Para usar S3/R2/MinIO externo, troque para s3_compatible e descomente/preencha as STORAGE_* abaixo.
+      - ACTIVE_STORAGE_SERVICE=local
+      - ACTIVE_STORAGE_URL=https://SUBDOMAIN_API   # URL publica p/ midia local (browser) = BACKEND_URL; gateway roteia /rails/active_storage -> CRM
+      # - ACTIVE_STORAGE_SERVICE=s3_compatible
+      # - STORAGE_BUCKET_NAME=meu-bucket
+      # - STORAGE_ACCESS_KEY_ID=
+      # - STORAGE_SECRET_ACCESS_KEY=
+      # - STORAGE_REGION=auto
+      # - STORAGE_ENDPOINT=https://xxxx.r2.cloudflarestorage.com
+
+    volumes:
+      - evocrm_storage:/app/storage
+    deploy:
+      placement:
+        constraints:
+          - node.role == manager
+
+## --------------------------- ORION --------------------------- ##
+
+  evocrm_core:
+    image: evoapicloud/evo-ai-core-service-community:latest
+
+    networks:
+      - evonet ## Nome da rede interna
+
+    environment:
+    ## 🗄️ PostgreSQL (conexão) — DB_PASSWORD é a MESMA senha do Postgres dos demais serviços
+      - DB_HOST=pgvector
+      - DB_PORT=5432
+      - DB_USER=postgres
+      - DB_PASSWORD=            # Senha do seu Postgres (a mesma em todos os serviços)
+      - DB_NAME=evocrm
+      - DB_SSLMODE=disable
+
+    ## 📈 Pool de conexões
+      - DB_MAX_IDLE_CONNS=10
+      - DB_MAX_OPEN_CONNS=100
+      - DB_CONN_MAX_LIFETIME=1h
+      - DB_CONN_MAX_IDLE_TIME=30m
+
+    ## 🌐 API (porta)
+      - PORT=5555
+
+    ## 🔐 Segredos e JWT — use os MESMOS valores dos demais serviços
+      - SECRET_KEY_BASE=        # Mesmo valor de SECRET_KEY_BASE usado nos demais serviços
+      - JWT_SECRET_KEY=         # Mesmo valor de JWT_SECRET_KEY usado nos demais serviços
+      - JWT_ALGORITHM=HS256
+      - ENCRYPTION_KEY=         # Chave Fernet (32 bytes, base64 url-safe). Ex.: python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())" — a mesma em core e processor
+
+    ## 🔗 Serviços internos
+      - EVOLUTION_BASE_URL=http://evocrm_crm:3000
+      - EVO_AUTH_BASE_URL=http://evocrm_auth:3001
+      - AI_PROCESSOR_URL=http://evocrm_processor:8000
+      - AI_PROCESSOR_VERSION=v1
+
+    deploy:
+      placement:
+        constraints:
+          - node.role == manager
+
+## --------------------------- ORION --------------------------- ##
+
+  evocrm_processor:
+    image: evoapicloud/evo-ai-processor-community:latest
+    command: sh -c "alembic upgrade head 2>&1 || echo 'Alembic migration had errors, continuing...'; python -m scripts.run_seeders; uvicorn src.main:app --host $$HOST --port $$PORT"
+
+    volumes:
+      - evocrm_processor_logs:/app/logs
+
+    networks:
+      - evonet ## Nome da rede interna
+
+    environment:
+    ## 🗄️ PostgreSQL — a senha está DENTRO da URL. Substitua <POSTGRES_PASSWORD> pela
+    ## mesma senha do Postgres usada nos demais serviços (o app lê só esta connection string).
+      - POSTGRES_CONNECTION_STRING=postgresql://postgres:<POSTGRES_PASSWORD>@pgvector:5432/evocrm?sslmode=disable
+
+    ## 🧊 Redis
+      - REDIS_HOST=evocrm_redis
+      - REDIS_PORT=6379
+      - REDIS_PASSWORD=
+      - REDIS_SSL=false
+      - REDIS_DB=1
+      - REDIS_KEY_PREFIX=a2a_
+      - REDIS_TTL=3600
+
+    ## 🌐 Uvicorn (host / porta)
+      - HOST=0.0.0.0
+      - PORT=8000
+
+    ## 🐛 Debug e segredos — use os MESMOS valores dos demais serviços
+      - DEBUG=false
+      - SECRET_KEY_BASE=        # Mesmo valor de SECRET_KEY_BASE usado nos demais serviços
+      - ENCRYPTION_KEY=         # Mesma chave Fernet usada no evocrm_core
+      - EVOAI_CRM_API_TOKEN=    # Mesmo valor de EVOAI_CRM_API_TOKEN usado nos demais serviços
+
+    ## 🔗 Integração CRM e Core
+      - EVO_AUTH_BASE_URL=http://evocrm_auth:3001
+      - EVO_AI_CRM_URL=http://evocrm_crm:3000
+      - CORE_SERVICE_URL=http://evocrm_core:5555/api/v1
+
+    ## 🌍 URLs públicas da API — troque SUBDOMAIN_API pelo seu domínio
+      - APP_URL=https://SUBDOMAIN_API
+      - API_URL=https://SUBDOMAIN_API
+
+    ## 📋 Metadados da API (OpenAPI)
+      - API_TITLE=Agent Processor Community
+      - API_DESCRIPTION=Agent Processor Community for Evo AI
+      - API_VERSION=1.0.0
+      - ORGANIZATION_NAME=Evo CRM
+
+    ## 🗃️ Cache de tools
+      - TOOLS_CACHE_ENABLED=true
+      - TOOLS_CACHE_TTL=3600
+
+    deploy:
+      placement:
+        constraints:
+          - node.role == manager
+
+## --------------------------- ORION --------------------------- ##
+
+  evocrm_bot_runtime:
+    image: evoapicloud/evo-bot-runtime:latest
+
+    networks:
+      - evonet ## Nome da rede interna
+
+    environment:
+    ## 🌐 Rede (listen)
+      - LISTEN_ADDR=0.0.0.0:8080
+
+    ## 🧊 Redis
+      - REDIS_URL=redis://evocrm_redis:6379/1
+
+    ## 🤖 Processor e segurança
+      - AI_PROCESSOR_URL=http://evocrm_processor:8000
+      - BOT_RUNTIME_SECRET=     # Mesmo valor de BOT_RUNTIME_SECRET usado no evocrm_crm e evocrm_crm_sidekiq
+      - AI_CALL_TIMEOUT_SECONDS=30
+
+    deploy:
+      placement:
+        constraints:
+          - node.role == manager
+
+## --------------------------- ORION --------------------------- ##
+
+  evocrm_frontend:
+    image: evoapicloud/evo-ai-frontend-community:latest
+
+    networks:
+      - evonet ## Nome da rede interna
+
+    environment:
+    ## ⚙️ Vite (ambiente)
+      - VITE_APP_ENV=production
+
+    ## 🌐 URLs da API (build-time) — troque SUBDOMAIN_API pelo seu domínio público da API
+      - VITE_API_URL=https://SUBDOMAIN_API
+      - VITE_AUTH_API_URL=https://SUBDOMAIN_API
+      - VITE_EVOAI_API_URL=https://SUBDOMAIN_API
+      - VITE_AGENT_PROCESSOR_URL=https://SUBDOMAIN_API
+      - VITE_WS_URL=https://SUBDOMAIN_API
+
+    deploy:
+      placement:
+        constraints:
+          - node.role == manager
+      labels:
+        - traefik.enable=1
+        - traefik.docker.network=evonet ## Nome da rede interna
+        - traefik.http.routers.evocrm_frontend.rule=Host(`SUBDOMAIN_FRONTEND`) ## Domínio público do frontend. Ex.: crm.seudominio.com
+        - traefik.http.routers.evocrm_frontend.entrypoints=websecure
+        - traefik.http.routers.evocrm_frontend.priority=1
+        - traefik.http.routers.evocrm_frontend.tls.certresolver=letsencryptresolver
+        - traefik.http.routers.evocrm_frontend.service=evocrm_frontend
+        - traefik.http.services.evocrm_frontend.loadbalancer.server.port=80
+        - traefik.http.services.evocrm_frontend.loadbalancer.passHostHeader=true
+
+## --------------------------- ORION --------------------------- ##
+
+  evocrm_redis:
+    image: redis:latest  ## Versão do Redis
+    command: [
+        "redis-server",
+        "--appendonly",
+        "yes",
+        "--port",
+        "6379"
+      ]
+
+    volumes:
+      - evocrm_redis:/data
+
+    networks:
+      - evonet ## Nome da rede interna
+    ## Descomente as linhas abaixo para uso externo
+    #ports:
+    #  - 6379:6379
+    deploy:
+      placement:
+        constraints:
+          - node.role == manager
+
+## --------------------------- ORION --------------------------- ##
+
+  ## ClickHouse — storage dos eventos do evo-flow (STORAGE_MODE=clickhouse).
+  ## Sem portas publicadas: só a rede interna alcança.
+  ## O evo-flow cria database e tabelas sozinho (CREATE DATABASE/TABLE IF NOT EXISTS).
+  evocrm_clickhouse:
+    image: clickhouse/clickhouse-server:latest  ## Versão do ClickHouse
+
+    environment:
+      - CLICKHOUSE_USER=default
+      - CLICKHOUSE_PASSWORD=    # Mesmo valor de CLICKHOUSE_PASSWORD usado no evocrm_evoflow. Ex.: gere com "openssl rand -hex 16"
+      - CLICKHOUSE_DB=default
+
+    volumes:
+      - evocrm_clickhouse_data:/var/lib/clickhouse
+
+    networks:
+      - evonet ## Nome da rede interna
+    deploy:
+      placement:
+        constraints:
+          - node.role == manager
+
+## --------------------------- ORION --------------------------- ##
+
+  ## RabbitMQ — o evo-flow exige um broker no boot, mesmo com QUEUE_MODE=direct.
+  ## Usuário dedicado: o 'guest' do RabbitMQ só aceita conexão vinda de localhost.
+  evocrm_rabbitmq:
+    image: rabbitmq:3-alpine  ## Versão do RabbitMQ
+
+    environment:
+      - RABBITMQ_DEFAULT_USER=evoflow
+      - RABBITMQ_DEFAULT_PASS=    # Mesma senha usada dentro do RABBITMQ_URL do evocrm_evoflow. Ex.: gere com "openssl rand -hex 16"
+
+    volumes:
+      - evocrm_rabbitmq_data:/var/lib/rabbitmq
+
+    networks:
+      - evonet ## Nome da rede interna
+    deploy:
+      placement:
+        constraints:
+          - node.role == manager
+
+## --------------------------- ORION --------------------------- ##
+
+  ## EvoFlow (NestJS) — serve /api/v1/segments ao CRM (que faz proxy) — porta 3334.
+  ## Postgres DEDICADO (evo_campaign) no mesmo servidor do CRM: o boot cria o banco
+  ## e roda as migrations. O banco do CRM (evocrm) não é tocado.
+  ## O swarm ignora depends_on → o boot espera o ClickHouse por conta própria.
+  evocrm_evoflow:
+    image: evoapicloud/evo-flow-community:develop
+    command:
+      - sh
+      - -c
+      - |
+        until node -e 'require("http").get("http://evocrm_clickhouse:8123/ping",r=>process.exit(r.statusCode===200?0:1)).on("error",()=>process.exit(1))'; do echo 'Waiting for clickhouse...'; sleep 5; done
+        node -e 'const{Client}=require("pg");const db=process.env.POSTGRES_DB_DATABASE;const c=new Client({host:process.env.POSTGRES_DB_HOST,port:+(process.env.POSTGRES_DB_PORT||5432),user:process.env.POSTGRES_DB_USERNAME,password:process.env.POSTGRES_DB_PASSWORD,database:"postgres"});c.connect().then(()=>c.query("CREATE DATABASE "+db)).then(()=>console.log("[init] created "+db)).catch(e=>console.log("[init] "+(e.code==="42P04"?"db already exists":e.message))).finally(()=>c.end());'
+        node_modules/.bin/typeorm migration:run -d dist/database/ormconfig.js || echo "[init] migration:run failed (continuing)"
+        exec node dist/main.js
+
+    networks:
+      - evonet ## Nome da rede interna
+
+    environment:
+    ## ⚙️ Modo de execução (single-node: API + escrita direta no ClickHouse, sem Kafka/Temporal)
+      - NODE_ENV=production
+      - RUN_MODE=api
+      - QUEUE_MODE=direct
+      - STORAGE_MODE=clickhouse
+      - WRITE_MODE=ch-sync
+      - PORT=3334
+      - LOG_LEVEL=log
+
+    ## 🔐 Chave compartilhada com o CRM (idêntica em evocrm_crm e evocrm_crm_sidekiq)
+      - AUTH_APIKEY_INTEGRATION_LOCAL=    # Mesmo valor de AUTH_APIKEY_INTEGRATION_LOCAL usado no evocrm_crm e crm_sidekiq
+
+    ## 🔗 Serviços internos (Auth + CRM)
+      - EVO_AUTH_SERVICE_URL=http://evocrm_auth:3001
+      - EVO_AUTH_VALIDATE_TOKEN_ENDPOINT=/api/v1/auth/validate
+      - EVOAI_CRM_BASE_URL=http://evocrm_crm:3000
+      - EVOAI_CRM_API_TOKEN=    # Mesmo valor de EVOAI_CRM_API_TOKEN usado nos demais serviços
+
+    ## 🐇 Broker (exigido no boot mesmo em QUEUE_MODE=direct)
+      - BROKER_TYPE=rabbitmq
+      - RABBITMQ_URL=amqp://evoflow:RABBITMQ_PASSWORD@evocrm_rabbitmq:5672    # Troque RABBITMQ_PASSWORD pela senha definida em evocrm_rabbitmq
+
+    ## 🧊 ClickHouse (eventos)
+      - CLICKHOUSE_HOST=evocrm_clickhouse
+      - CLICKHOUSE_PORT=8123
+      - CLICKHOUSE_DATABASE=evo_campaign
+      - CLICKHOUSE_USERNAME=default
+      - CLICKHOUSE_PASSWORD=    # Mesmo valor de CLICKHOUSE_PASSWORD usado no evocrm_clickhouse
+      - CLICKHOUSE_TABLE=contact_events
+
+    ## 🗄️ PostgreSQL — banco dedicado evo_campaign no MESMO Postgres (não toca o evocrm)
+      - POSTGRES_DB_HOST=pgvector
+      - POSTGRES_DB_PORT=5432
+      - POSTGRES_DB_USERNAME=postgres
+      - POSTGRES_DB_PASSWORD=    # Senha do seu Postgres (a mesma em todos os serviços)
+      - POSTGRES_DB_DATABASE=evo_campaign
+
+    ## 🧊 Redis (cache de token/sessão) — DB 4 para não colidir com o CRM (1)
+      - REDIS_HOST=evocrm_redis
+      - REDIS_PORT=6379
+      - REDIS_PASSWORD=
+      - REDIS_DB=4
+
+    deploy:
+      placement:
+        constraints:
+          - node.role == manager
+
+## --------------------------- ORION --------------------------- ##
+
+volumes:
+  evocrm_processor_logs:
+    external: true
+    name: evocrm_processor_logs
+  evocrm_redis:
+    external: true
+    name: evocrm_redis
+  evocrm_clickhouse_data:
+  evocrm_rabbitmq_data:
+  evocrm_storage:
+  evoauth_storage:
+
+networks:
+  evonet: ## Nome da rede interna
+    external: true
+    name: evonet ## Nome da rede interna

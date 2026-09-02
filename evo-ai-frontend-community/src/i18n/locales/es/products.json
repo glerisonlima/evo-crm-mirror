@@ -1,0 +1,240 @@
+{
+  "page": {
+    "title": "Productos",
+    "subtitle": "Catálogo de productos físicos y digitales utilizables por los agentes de IA.",
+    "loading": "Cargando..."
+  },
+  "header": {
+    "searchPlaceholder": "Buscar por nombre, SKU o descripción",
+    "new": "Nuevo producto",
+    "import": "Importar CSV",
+    "filters": {
+      "kindAll": "Todos los tipos",
+      "statusAll": "Todos los estados"
+    }
+  },
+  "kind": {
+    "physical": "Físico",
+    "digital": "Digital"
+  },
+  "status": {
+    "active": "Activo",
+    "inactive": "Inactivo",
+    "draft": "Borrador"
+  },
+  "table": {
+    "empty": "Aún no hay productos. Haga clic en \"Nuevo producto\" para empezar.",
+    "columns": {
+      "name": "Nombre",
+      "sku": "SKU",
+      "kind": "Tipo",
+      "price": "Precio",
+      "status": "Estado",
+      "variants": "Variantes",
+      "actions": "Acciones",
+      "stock": "Stock"
+    },
+    "outOfStock": "Agotado"
+  },
+  "modal": {
+    "createTitle": "Crear producto",
+    "editTitle": "Editar producto",
+    "subtitle": "Complete los detalles del catálogo. Use variantes para tamaños/colores cuando sea necesario.",
+    "tabs": {
+      "general": "General",
+      "media": "Multimedia",
+      "variants": "Variantes",
+      "labels": "Categorías"
+    }
+  },
+  "fields": {
+    "name": "Nombre",
+    "namePlaceholder": "Ej.: Camiseta negra premium",
+    "kind": "Tipo",
+    "status": "Estado",
+    "sku": "SKU",
+    "stockQuantity": "Cantidad en stock",
+    "defaultPrice": "Precio predeterminado",
+    "currency": "Moneda",
+    "purchaseUrl": "Enlace de compra",
+    "description": "Descripción",
+    "descriptionPlaceholder": "Descripción corta del producto (también usada por el agente de IA)",
+    "labels": "Categorías / etiquetas",
+    "labelsPlaceholder": "Separadas por comas, ej.: ropa, coleccion-verano",
+    "labelsHint": "Las categorías ayudan a filtrar productos y pueden ser usadas por reglas de automatización.",
+    "skuPlaceholder": "SKU-001",
+    "purchaseUrlPlaceholder": "https://...",
+    "digitalNoStockHint": "Los productos digitales no tienen stock."
+  },
+  "media": {
+    "uploadHint": "Arrastre imágenes aquí o use el botón de abajo.",
+    "selectFiles": "Seleccionar archivos",
+    "existing": "Imágenes existentes",
+    "pending": "Pendientes de subida"
+  },
+  "variants": {
+    "empty": "Sin variantes. Haga clic en \"Agregar variante\".",
+    "add": "Agregar variante",
+    "name": "Nombre (ej.: M, Azul)",
+    "sku": "SKU",
+    "priceOverride": "Precio (anula el predeterminado)",
+    "stock": "Stock",
+    "digitalHint": "Generalmente no se usan variantes en productos digitales.",
+    "namePlaceholder": "ej.: P / M / G"
+  },
+  "actions": {
+    "cancel": "Cancelar",
+    "create": "Crear",
+    "update": "Actualizar",
+    "saving": "Guardando...",
+    "delete": "Eliminar",
+    "deleting": "Eliminando...",
+    "edit": "Editar"
+  },
+  "confirmDelete": {
+    "title": "¿Eliminar producto?",
+    "description": "¿Seguro que desea eliminar \"{{name}}\"? Esta acción no se puede deshacer."
+  },
+  "pagination": {
+    "previous": "Anterior",
+    "next": "Siguiente",
+    "summary": "Página {{page}} de {{totalPages}} — {{totalCount}} productos"
+  },
+  "messages": {
+    "loadError": "Error al cargar productos",
+    "createSuccess": "Producto creado",
+    "createError": "Error al crear producto",
+    "updateSuccess": "Producto actualizado",
+    "updateError": "Error al actualizar producto",
+    "deleteSuccess": "Producto eliminado",
+    "deleteError": "Error al eliminar producto"
+  },
+  "import": {
+    "title": "Importar productos desde CSV",
+    "subtitle": "Sube un CSV con hasta {{max}} filas. El archivo se analiza en el navegador, se valida con las reglas del catálogo y se envía en una única transacción.",
+    "back": "Volver a productos",
+    "forbidden": "No tienes permiso para importar productos.",
+    "success": "{{count}} productos importados correctamente",
+    "tabs": {
+      "upload": "1. Subida",
+      "mapping": "2. Mapeo",
+      "preview": "3. Vista previa",
+      "done": "4. Listo"
+    },
+    "upload": {
+      "hint": "Selecciona un CSV UTF-8 con encabezado. Límite: {{max}} filas.",
+      "selectFile": "Seleccionar CSV"
+    },
+    "mapping": {
+      "file": "{{name}} — {{count}} fila(s)",
+      "changeFile": "Cambiar archivo",
+      "csvHeader": "Columna CSV",
+      "sample": "Ejemplo (1.ª fila)",
+      "field": "Asignar a",
+      "ignore": "(ignorar)",
+      "missingRequired": "Campos obligatorios sin asignar: {{fields}}",
+      "back": "Volver",
+      "next": "Continuar"
+    },
+    "fields": {
+      "name": "Nombre",
+      "slug": "Slug",
+      "kind": "Tipo",
+      "description": "Descripción",
+      "sku": "SKU",
+      "default_price": "Precio base",
+      "currency": "Moneda",
+      "purchase_url": "URL de compra",
+      "status": "Estado",
+      "stock_quantity": "Stock",
+      "labels": "Etiquetas"
+    },
+    "preview": {
+      "valid": "Filas válidas",
+      "invalid": "Filas inválidas (cliente)",
+      "conflicts": "Conflictos del servidor",
+      "runDryRun": "Ejecutar simulación",
+      "import": "Importar",
+      "backToMapping": "Volver al mapeo",
+      "errorsHeading": "{{count}} fila(s) requieren atención",
+      "row": "Fila",
+      "sku": "SKU",
+      "errors": "Errores"
+    },
+    "done": {
+      "title": "Importación completada",
+      "subtitle": "Todas las filas se guardaron correctamente.",
+      "backToList": "Volver a productos",
+      "importAnother": "Importar otro archivo"
+    },
+    "errors": {
+      "emptyFile": "El archivo CSV no tiene encabezado.",
+      "tooManyRows": "El CSV tiene {{received}} filas pero el límite es {{max}}.",
+      "duplicateHeaders": "El CSV tiene columnas con nombres duplicados: {{headers}}. Renómbralas antes de subir.",
+      "emptyHeader": "El CSV tiene encabezados vacíos en la(s) posición(es): {{columns}}. Nombra todas las columnas antes de subir.",
+      "noDataRows": "El CSV solo contiene encabezado — no hay filas para importar.",
+      "parseError": "Error al analizar el CSV en la línea {{line}}: {{message}}",
+      "readError": "No se pudo leer el archivo seleccionado.",
+      "missingRequired": "Asigna los campos obligatorios antes de continuar: {{fields}}",
+      "noValidRows": "No hay filas válidas para enviar.",
+      "network": "Error de red. Inténtalo de nuevo.",
+      "unauthorized": "Tu sesión ha caducado. Inicia sesión otra vez.",
+      "forbidden": "No tienes permiso para importar productos en lote.",
+      "rateLimited": "Límite de solicitudes alcanzado (10/min). Espera un momento y vuelve a intentarlo.",
+      "dryRunInvalid": "La simulación marcó {{count}} fila(s). Corrígelas e inténtalo de nuevo.",
+      "serverInvalid": "El servidor rechazó {{count}} fila(s). El lote completo se revirtió."
+    },
+    "parseErrorCodes": {
+      "invalid_delimiter": "delimitador no válido",
+      "unexpected_quote": "comilla inesperada dentro de un campo sin comillas",
+      "unterminated_quoted_field": "campo entre comillas sin cerrar"
+    },
+    "serverErrors": {
+      "required": "es obligatorio",
+      "too_long": "es demasiado largo",
+      "invalid_kind": "debe ser físico o digital",
+      "invalid_status": "debe ser activo, inactivo o borrador",
+      "invalid_currency": "debe ser BRL, USD o EUR",
+      "must_be_non_negative": "debe ser mayor o igual a cero",
+      "must_be_integer": "debe ser un número entero",
+      "invalid_url": "debe ser una URL http(s) válida",
+      "invalid_number": "no es un número válido",
+      "duplicated_within_batch": "duplicado dentro del lote",
+      "taken": "ya está en uso",
+      "invalid_value": "no es un valor válido"
+    }
+  },
+  "pipelinePanel": {
+    "title": "Productos vendidos",
+    "empty": "Aún no hay productos vinculados a esta tarjeta.",
+    "emptyList": "No hay productos vinculados.",
+    "summary": "{{count}} producto(s) · total {{total}}",
+    "add": "Agregar producto",
+    "added": "Producto agregado",
+    "addError": "Error al agregar producto",
+    "removed": "Producto eliminado",
+    "removeError": "Error al eliminar producto",
+    "product": "Producto",
+    "selectProduct": "Seleccione un producto",
+    "variant": "Variante",
+    "selectVariant": "Seleccione una variante",
+    "noVariant": "Sin variante",
+    "quantity": "Cantidad",
+    "notes": "Notas (opcional)"
+  },
+  "currency": {
+    "BRL": "Real (BRL)",
+    "USD": "Dólar (USD)",
+    "EUR": "Euro (EUR)"
+  },
+  "validation": {
+    "nameRequired": "El nombre es obligatorio",
+    "priceRequired": "El precio es obligatorio",
+    "priceMin": "El precio debe ser 0 o mayor",
+    "urlInvalid": "Introduce una URL válida (http/https)",
+    "requiredLegend": "Los campos marcados con * son obligatorios",
+    "skuTaken": "Este SKU ya está en uso",
+    "variantPriceCurrency": "en {{currency}}",
+    "fixErrors": "Completa los campos obligatorios para continuar."
+  }
+}

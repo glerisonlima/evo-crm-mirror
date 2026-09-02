@@ -1,0 +1,291 @@
+import React, { useState } from 'react';
+
+import { useLanguage } from '@/hooks/useLanguage';
+import { useConversations } from '@/hooks/chat/useConversations';
+import { useContactPiiMasking } from '@/hooks/useContactPiiMasking';
+
+import { contactsService } from '@/services/contacts/contactsService';
+import { unixTimestampToIso } from '@/utils/chat/contactTimestamp';
+
+import { Button } from '@evoapi/design-system/button';
+import {
+  User,
+  Phone,
+  Mail,
+  // MapPin,
+  Clock,
+  Calendar,
+  Activity,
+  Copy,
+  Hash,
+  Edit,
+  Lock,
+  Tag,
+} from 'lucide-react';
+
+import { toast } from 'sonner';
+
+import ContactModal from '@/components/contacts/ContactModal';
+import EditableContactCustomAttributes from './EditableContactCustomAttributes';
+
+import { Contact } from '@/types/chat/api';
+import { Contact as FullContact, ContactFormData } from '@/types/contacts';
+
+interface ContactDetailsProps {
+  contact: Contact | null;
+  onContactAttributeUpdate?: () => void;
+}
+
+const ContactDetails: React.FC<ContactDetailsProps> = ({ contact, onContactAttributeUpdate }) => {
+  const { t } = useLanguage('chat');
+
+  const { updateContactInConversations } = useConversations();
+  const { shouldMask, maskPhone, maskEmail, maskIdentifier } = useContactPiiMasking();
+
+  const [contactModalOpen, setContactModalOpen] = useState(false);
+  const [editingContact, setEditingContact] = useState<FullContact | null>(null);
+
+  const formatDate = (dateString?: string | number): string => {
+    if (!dateString) return t('contactSidebar.contactDetails.notInformed');
+    const iso = unixTimestampToIso(dateString) ?? (typeof dateString === 'string' ? dateString : undefined);
+    if (!iso) return t('contactSidebar.contactDetails.notInformed');
+    const date = new Date(iso);
+    if (isNaN(date.getTime())) return t('contactSidebar.contactDetails.notInformed');
+    return date.toLocaleDateString('pt-BR', {
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+    });
+  };
+
+  const handleContactFormSubmit = async (data: ContactFormData) => {
+    if (!contact?.id) return;
+
+    try {
+      // Atualizar o contato
+      const updatedContactResponse = await contactsService.updateContact(contact.id, data);
+
+      // Converter o tipo de Contact de @/types/contacts para Contact de @/pages/Customer/Chat/types/api
+      const updatedContact: Contact = {
+        id: updatedContactResponse.id,
+        name: updatedContactResponse.name,
+        email: updatedContactResponse.email || null,
+        phone_number: updatedContactResponse.phone_number || null,
+        avatar: updatedContactResponse.avatar || null,
+        avatar_url: updatedContactResponse.avatar_url || null,
+        identifier: updatedContactResponse.identifier || null,
+        custom_attributes: updatedContactResponse.custom_attributes || {},
+        additional_attributes: (updatedContactResponse.additional_attributes || {}) as Record<string, unknown>,
+        contact_inboxes: (updatedContactResponse.contact_inboxes || []) as unknown as Record<string, unknown>,
+        location: null, // Propriedade não disponível no tipo de @/types/contacts
+        country_code: null, // Propriedade não disponível no tipo de @/types/contacts
+        blocked: updatedContactResponse.blocked || false,
+        last_activity_at: updatedContactResponse.last_activity_at || '',
+        created_at: updatedContactResponse.created_at || '',
+        updated_at: updatedContactResponse.updated_at || '',
+      };
+
+      updateContactInConversations(updatedContact);
+
+      toast.success(t('contactSidebar.contactDetails.actions.updateSuccess'));
+
+      setContactModalOpen(false);
+      setEditingContact(null);
+    } catch (error) {
+      console.error('Error saving contact:', error);
+      toast.error(t('contactSidebar.contactDetails.actions.updateError'));
+    }
+  };
+
+  const handleEditContact = () => {
+    if (contact) {
+      // Converter Contact do Chat para FullContact
+      setEditingContact(contact as unknown as FullContact);
+    }
+    setContactModalOpen(true);
+  };
+
+  const handleContactModalClose = (open: boolean) => {
+    setContactModalOpen(open);
+  };
+
+  if (!contact) {
+    return (
+      <div className="text-xs text-muted-foreground text-center py-4">
+        {t('contactSidebar.contactDetails.noContact')}
+      </div>
+    );
+  }
+
+  return (
+    <div>
+      {/* Informações Básicas */}
+      <div className="space-y-2">
+        <h4 className="text-sm font-semibold flex items-center gap-2">
+          <User className="h-4 w-4" />
+          {t('contactSidebar.contactDetails.sections.basicInfo')}
+        </h4>
+        <div className="space-y-2">
+          {contact?.name && (
+            <InfoField
+              label={t('contactSidebar.contactDetails.fields.name')}
+              value={contact.name}
+              icon={<User className="h-4 w-4" />}
+            />
+          )}
+          {contact?.phone_number && (
+            <InfoField
+              label={t('contactSidebar.contactDetails.fields.phone')}
+              value={maskPhone(contact.phone_number)}
+              copyValue={shouldMask ? maskPhone(contact.phone_number) : contact.phone_number}
+              icon={<Phone className="h-4 w-4" />}
+              copyable
+              isMasked={shouldMask}
+            />
+          )}
+          {contact?.identifier && (
+            <InfoField
+              label={t('contactSidebar.contactDetails.fields.identifier')}
+              value={maskIdentifier(contact.identifier)}
+              copyValue={shouldMask ? maskIdentifier(contact.identifier) : contact.identifier}
+              icon={<Hash className="h-4 w-4" />}
+              copyable
+              isMasked={shouldMask}
+            />
+          )}
+          {contact?.email && (
+            <InfoField
+              label={t('contactSidebar.contactDetails.fields.email')}
+              value={maskEmail(contact.email)}
+              copyValue={shouldMask ? maskEmail(contact.email) : contact.email}
+              icon={<Mail className="h-4 w-4" />}
+              copyable
+              isMasked={shouldMask}
+            />
+          )}
+          {/* {contact?.location && (
+            <InfoField
+              label={t('contactSidebar.contactDetails.fields.location')}
+              value={contact.location}
+              icon={<MapPin className="h-4 w-4" />}
+            />
+          )} */}
+        </div>
+        <Button variant="outline" size="sm" onClick={handleEditContact}>
+          <Edit className="h-4 w-4" />
+          {t('contactSidebar.contactDetails.actions.edit')}
+        </Button>
+      </div>
+
+      {/* Histórico */}
+      <div className="space-y-2 pt-3 mt-3 border-t border-border">
+        <h4 className="text-sm font-semibold flex items-center gap-2">
+          <Clock className="h-4 w-4" />
+          {t('contactSidebar.contactDetails.sections.history')}
+        </h4>
+        <div className="space-y-2">
+          <InfoField
+            label={t('contactSidebar.contactDetails.fields.createdAt')}
+            value={formatDate(contact?.created_at)}
+            icon={<Calendar className="h-4 w-4" />}
+          />
+          <InfoField
+            label={t('contactSidebar.contactDetails.fields.lastActivity')}
+            value={formatDate(contact?.last_activity_at)}
+            icon={<Activity className="h-4 w-4" />}
+          />
+        </div>
+      </div>
+
+      {/* Atributos do Contato */}
+      <div className="space-y-2 pt-3 mt-3 border-t border-border">
+        <h4 className="text-sm font-semibold flex items-center gap-2">
+          <Tag className="h-4 w-4" />
+          {t('contactSidebar.sections.contactAttributes.title')}
+        </h4>
+        <EditableContactCustomAttributes
+          contact={contact}
+          onContactUpdate={onContactAttributeUpdate}
+        />
+      </div>
+
+      <ContactModal
+        open={contactModalOpen}
+        onOpenChange={handleContactModalClose}
+        contact={editingContact || undefined}
+        isNew={!editingContact}
+        loading={false}
+        onSubmit={handleContactFormSubmit}
+      />
+    </div>
+  );
+};
+
+// Componente auxiliar para campos de informação
+interface InfoFieldProps {
+  label: string;
+  value?: string | null;
+  icon?: React.ReactNode;
+  copyable?: boolean;
+  // Optional override for what `handleCopy` writes to the clipboard. Use this
+  // when `value` is a presentation-only string (e.g. a formatted phone) and
+  // the unformatted raw should be copied so integrations like `wa.me/<digits>`
+  // keep working.
+  copyValue?: string | null;
+  isMasked?: boolean;
+}
+
+const InfoField: React.FC<InfoFieldProps> = ({
+  label,
+  value,
+  icon,
+  copyable = false,
+  copyValue,
+  isMasked = false,
+}) => {
+  const { t } = useLanguage('chat');
+
+  const handleCopy = () => {
+    const target = copyValue ?? value;
+    if (target) {
+      navigator.clipboard.writeText(target);
+      toast.success(
+        isMasked
+          ? t('contactSidebar.contactDetails.maskedValueCopied')
+          : t('contactSidebar.contactDetails.copiedToClipboard')
+      );
+    }
+  };
+
+  const protectedTitle = isMasked
+    ? t('contactSidebar.contactDetails.dataProtectedTooltip')
+    : undefined;
+
+  return (
+    <div className="flex items-center justify-between py-2 border-b border-border/50">
+      <div className="flex items-center gap-2 min-w-0 flex-1">
+        {icon}
+        <span className="text-sm text-muted-foreground">{label}:</span>
+      </div>
+
+      <div className="flex items-center gap-2">
+        {isMasked && value && (
+          <Lock className="h-3 w-3 text-muted-foreground" aria-label={protectedTitle} />
+        )}
+        <span className="text-sm font-medium truncate max-w-48" title={protectedTitle}>
+          {value || t('contactSidebar.contactDetails.notInformed')}
+        </span>
+
+        {copyable && value && (
+          <Button variant="ghost" size="sm" onClick={handleCopy} className="h-6 w-6 p-0">
+            <Copy className="h-3 w-3" />
+          </Button>
+        )}
+      </div>
+    </div>
+  );
+};
+
+export default ContactDetails;

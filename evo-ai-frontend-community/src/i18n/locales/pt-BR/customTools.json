@@ -1,0 +1,358 @@
+{
+  "title": "Ferramentas Personalizadas",
+  "header": {
+    "title": "Ferramentas Personalizadas",
+    "subtitle": "Crie e gerencie ferramentas HTTP personalizadas para seus agentes",
+    "newTool": "Nova Ferramenta Personalizada",
+    "searchPlaceholder": "Buscar por nome, método ou endpoint..."
+  },
+  "card": {
+    "noDescription": "Sem descrição",
+    "examples": "{{count}} exemplo(s)",
+    "createdAt": "Criado em",
+    "actions": {
+      "test": "Testar",
+      "edit": "Editar",
+      "delete": "Deletar"
+    }
+  },
+  "details": {
+    "title": "Detalhes da Ferramenta",
+    "sections": {
+      "basicInfo": "Informações Básicas",
+      "tags": "Tags",
+      "examples": "Exemplos",
+      "headers": "Headers HTTP",
+      "inputOutput": "Modos de Entrada e Saída"
+    },
+    "fields": {
+      "name": "Nome",
+      "description": "Descrição",
+      "method": "Método HTTP",
+      "createdAt": "Criado em",
+      "endpoint": "Endpoint",
+      "inputModes": "Modos de Entrada",
+      "outputModes": "Modos de Saída",
+      "notSpecified": "Não especificado"
+    },
+    "empty": {
+      "tags": "Nenhuma tag configurada",
+      "examples": "Nenhum exemplo disponível",
+      "headers": "Nenhum header HTTP configurado"
+    },
+    "actions": {
+      "test": "Testar",
+      "edit": "Editar"
+    }
+  },
+  "form": {
+    "title": {
+      "create": "Criar Nova Ferramenta Personalizada",
+      "edit": "Editar {{name}}",
+      "view": "Visualizar {{name}}"
+    },
+    "sections": {
+      "basicInfo": "Informações Básicas",
+      "httpConfig": "Configuração HTTP",
+      "tags": "Tags",
+      "examples": "Exemplos"
+    },
+    "fields": {
+      "name": {
+        "label": "Nome",
+        "placeholder": "Nome da ferramenta personalizada",
+        "required": true
+      },
+      "description": {
+        "label": "Descrição",
+        "placeholder": "Descrição da ferramenta personalizada..."
+      },
+      "method": {
+        "label": "Método HTTP",
+        "placeholder": "Selecione o método",
+        "required": true
+      },
+      "endpoint": {
+        "label": "Endpoint",
+        "placeholder": "https://api.example.com/endpoint",
+        "required": true
+      },
+      "headers": {
+        "label": "Headers HTTP (JSON)",
+        "labelKv": "Headers HTTP",
+        "placeholder": "{\"Authorization\": \"Bearer token\", \"Content-Type\": \"application/json\"}",
+        "keyPlaceholder": "Nome do header (ex: Authorization)",
+        "valuePlaceholder": "Valor (ex: Bearer token)",
+        "hint": "Headers HTTP enviados em toda requisição (auth, content-type, etc.)"
+      },
+      "bodyParams": {
+        "label": "Parâmetros do Body (JSON)",
+        "labelKv": "Parâmetros do Body",
+        "placeholder": "{\"key\": \"value\", \"nested\": {\"field\": \"data\"}}",
+        "keyPlaceholder": "Nome do campo",
+        "valuePlaceholder": "Valor",
+        "hint": "Campos do corpo enviados em requisições POST/PUT/PATCH"
+      },
+      "queryParams": {
+        "label": "Parâmetros de Query (JSON)",
+        "labelKv": "Parâmetros de Query",
+        "placeholder": "{\"param1\": \"value1\", \"param2\": \"value2\"}",
+        "keyPlaceholder": "Nome do parâmetro",
+        "valuePlaceholder": "Valor",
+        "hint": "Parâmetros da query string anexados à URL (ex: ?param=valor)"
+      },
+      "pathParams": {
+        "label": "Parâmetros de Path (JSON)",
+        "labelKv": "Parâmetros de Path",
+        "placeholder": "{\"user_id\": \"{user_id}\", \"resource_id\": \"{resource_id}\"}",
+        "keyPlaceholder": "Nome do parâmetro (ex: user_id)",
+        "valuePlaceholder": "Valor ou placeholder",
+        "hint": "Placeholders de path substituídos na URL (ex: /users/{user_id})"
+      },
+      "values": {
+        "label": "Valores Padrão (JSON)",
+        "labelKv": "Valores Padrão",
+        "placeholder": "{\"default_key\": \"default_value\"}",
+        "keyPlaceholder": "Chave (ex: default_user)",
+        "valuePlaceholder": "Valor padrão",
+        "hint": "Valores padrão usados como fallback quando parâmetros não são fornecidos em runtime"
+      },
+      "errorHandling": {
+        "label": "Tratamento de Erros (JSON)",
+        "labelVisual": "Tratamento de Erros",
+        "placeholder": "{\"timeout\": 30, \"retry_count\": 3, \"fallback_response\": \"{}\"}",
+        "timeoutLabel": "Timeout (segundos)",
+        "retryLabel": "Número de retries",
+        "fallbackLabel": "Resposta de fallback",
+        "fallbackPlaceholder": "JSON retornado quando todos os retries falham",
+        "hint": "Configure timeout, retries e uma resposta de fallback pra erros"
+      },
+      "inputModes": {
+        "label": "Modos de Entrada (array JSON)",
+        "labelVisual": "Modos de Entrada",
+        "placeholder": "[\"text\", \"image\"]",
+        "placeholderVisual": "Digite e pressione Enter…",
+        "hint": "Tipos MIME ou modos de entrada suportados",
+        "hintVisual": "Digite e pressione Enter pra adicionar, ou clique numa sugestão"
+      },
+      "outputModes": {
+        "label": "Modos de Saída (array JSON)",
+        "labelVisual": "Modos de Saída",
+        "placeholder": "[\"text\", \"json\"]",
+        "placeholderVisual": "Digite e pressione Enter…",
+        "hint": "Tipos MIME ou modos de saída suportados",
+        "hintVisual": "Digite e pressione Enter pra adicionar, ou clique numa sugestão"
+      },
+      "tags": {
+        "label": "Tags",
+        "placeholder": "api, http, webhook",
+        "placeholderTagInput": "Digite e pressione Enter pra adicionar uma tag…",
+        "hint": "Separe as tags com vírgulas para organizar e categorizar a ferramenta",
+        "hintTagInput": "Pressione Enter ou vírgula pra adicionar uma tag. Backspace remove a última."
+      },
+      "examples": {
+        "label": "Exemplos",
+        "placeholder": "Adicionar exemplo de uso..."
+      }
+    },
+    "validation": {
+      "nameRequired": "Nome é obrigatório",
+      "endpointRequired": "Endpoint é obrigatório",
+      "endpointInvalid": "Endpoint deve ser uma URL válida",
+      "methodRequired": "Método HTTP é obrigatório",
+      "headersInvalid": "JSON de headers inválido",
+      "bodyParamsInvalid": "JSON inválido para parâmetros do body",
+      "queryParamsInvalid": "JSON inválido para parâmetros de query",
+      "pathParamsInvalid": "JSON inválido para parâmetros de path",
+      "valuesInvalid": "JSON inválido para valores padrão",
+      "errorHandlingInvalid": "JSON inválido para tratamento de erros",
+      "inputModesInvalid": "Modos de entrada devem ser um array JSON de strings",
+      "outputModesInvalid": "Modos de saída devem ser um array JSON de strings"
+    },
+    "actions": {
+      "cancel": "Cancelar",
+      "save": "Salvar Alterações",
+      "create": "Criar Ferramenta",
+      "saving": "Salvando..."
+    }
+  },
+  "keyValueEditor": {
+    "keyPlaceholder": "Chave",
+    "valuePlaceholder": "Valor",
+    "addRow": "Adicionar linha",
+    "removeRow": "Remover linha",
+    "complexValueBadge": "valor complexo — edite no modo avançado",
+    "errors": {
+      "emptyKey": "A chave não pode ser vazia",
+      "duplicateKey": "Chave duplicada",
+      "emptyValue": "Valor é obrigatório quando a chave está preenchida"
+    }
+  },
+  "advancedConfig": {
+    "title": "Configuração avançada"
+  },
+  "tagInput": {
+    "placeholder": "Digite e pressione Enter…",
+    "removeTag": "Remover {{tag}}",
+    "suggestions": "Sugestões"
+  },
+  "testResult": {
+    "titleSuccess": "Teste bem-sucedido",
+    "titleError": "Teste falhou",
+    "statusCode": "Código de status",
+    "responseTime": "Tempo de resposta",
+    "errorLabel": "Erro",
+    "responseHeaders": "Headers da resposta",
+    "responseBody": "Corpo da resposta",
+    "noData": "A requisição não completou e não retornou detalhes.",
+    "close": "Fechar"
+  },
+  "testRequest": {
+    "button": "Testar requisição",
+    "testing": "Testando...",
+    "success": "Requisição executada com sucesso",
+    "error": "Falha ao testar a requisição",
+    "statusCode": "Status",
+    "responseTime": "Tempo de resposta",
+    "responseHeaders": "Headers da resposta",
+    "responseBody": "Corpo da resposta",
+    "disabledTooltipCreateMode": "Salve a tool primeiro pra poder testar"
+  },
+  "wizard": {
+    "progress": {
+      "identity": "Identidade",
+      "endpoint": "Endpoint",
+      "parameters": "Parâmetros",
+      "advanced": "Avançado",
+      "modes": "Modos",
+      "finish": "Finalizar"
+    },
+    "step1": {
+      "title": "Vamos identificar sua tool",
+      "subtitle": "Dê um nome, descrição e tags pra sua equipe encontrar depois."
+    },
+    "step2": {
+      "title": "Qual endpoint ela chama?",
+      "subtitle": "Escolha o método HTTP, a URL e os headers enviados em toda requisição."
+    },
+    "step3": {
+      "title": "Configure os parâmetros",
+      "subtitle": "Query, path e body params. Body só aparece se o método permitir."
+    },
+    "step4": {
+      "title": "Configuração avançada",
+      "subtitle": "Opcional. Valores padrão e tratamento de erros.",
+      "helperText": "Esses campos são opcionais — pule se não precisar."
+    },
+    "step5": {
+      "title": "Modos de entrada e saída",
+      "subtitle": "Opcional. Declare que tipo de conteúdo essa tool aceita e devolve.",
+      "selectPlaceholder": "Selecione um tipo",
+      "modeOptions": {
+        "text": "Texto",
+        "image": "Imagem",
+        "audio": "Áudio",
+        "video": "Vídeo",
+        "json": "JSON",
+        "file": "Arquivo"
+      },
+      "input": {
+        "typeLabel": "O que ela recebe",
+        "descriptionLabel": "O que a IA deve enviar?",
+        "badge": "instrução pra IA",
+        "descriptionPlaceholder": "Ex: A imagem de um documento ou comprovante que o cliente enviou e precisa ser lido."
+      },
+      "output": {
+        "typeLabel": "O que ela devolve",
+        "descriptionLabel": "Descreva o retorno",
+        "badge": "ajuda o agente a interpretar",
+        "descriptionPlaceholder": "Ex: O texto extraído do documento, em formato corrido, pronto pra ser usado na resposta."
+      }
+    },
+    "step6": {
+      "title": "Toques finais",
+      "subtitle": "Adicione exemplos de uso que ajudam os agentes a saber quando chamar essa tool.",
+      "helperText": "Exemplos são descrições curtas de como usar a tool.",
+      "testHint": "Após criar, você poderá testar a tool contra o endpoint real.",
+      "attachHint": "Criar a ferramenta apenas a adiciona ao catálogo. Para um agente usá-la, anexe-a ao agente na aba Ferramentas dele."
+    },
+    "actions": {
+      "continue": "Continuar",
+      "back": "Voltar",
+      "skip": "Pular",
+      "create": "Criar tool",
+      "save": "Salvar alterações"
+    }
+  },
+  "modal": {
+    "title": {
+      "create": "Criar Nova Ferramenta Personalizada",
+      "edit": "Editar {{name}}",
+      "view": "Visualizar {{name}}",
+      "editFallback": "Editar Ferramenta Personalizada",
+      "viewFallback": "Visualizar Ferramenta Personalizada"
+    }
+  },
+  "filter": {
+    "title": "Filtrar Ferramentas Personalizadas",
+    "description": "Configure os filtros para encontrar as ferramentas personalizadas que você procura",
+    "apply": "Aplicar Filtros",
+    "clear": "Limpar Filtros",
+    "addFilter": "Adicionar Filtro"
+  },
+  "table": {
+    "columns": {
+      "tool": "Ferramenta",
+      "description": "Descrição",
+      "endpoint": "Endpoint",
+      "tags": "Tags",
+      "createdAt": "Criado em",
+      "test": "Teste"
+    },
+    "noName": "Sem nome",
+    "noDescription": "Sem descrição",
+    "noTags": "-",
+    "actions": {
+      "test": "Testar",
+      "edit": "Editar ferramenta",
+      "delete": "Deletar ferramenta",
+      "create": "Criar ferramenta personalizada"
+    },
+    "empty": {
+      "title": "Nenhuma ferramenta personalizada criada",
+      "description": "Crie ferramentas personalizadas para expandir as capacidades dos agentes.",
+      "noResults": "Nenhuma ferramenta personalizada encontrada"
+    }
+  },
+  "loading": {
+    "tools": "Carregando ferramentas...",
+    "creating": "Criando...",
+    "updating": "Atualizando...",
+    "deleting": "Deletando...",
+    "testing": "Testando..."
+  },
+  "messages": {
+    "loadError": "Erro ao carregar ferramentas personalizadas",
+    "createSuccess": "Ferramenta personalizada criada com sucesso",
+    "createError": "Erro ao criar ferramenta personalizada",
+    "updateSuccess": "Ferramenta personalizada atualizada com sucesso",
+    "updateError": "Erro ao atualizar ferramenta personalizada",
+    "deleteSuccess": "Ferramenta personalizada deletada com sucesso",
+    "deleteError": "Erro ao deletar ferramenta personalizada",
+    "testSuccess": "Teste executado com sucesso",
+    "testError": "Erro ao testar ferramenta personalizada",
+    "applyFiltersError": "Erro ao aplicar filtros"
+  },
+  "deleteDialog": {
+    "title": "Excluir Ferramenta Personalizada",
+    "description": "Tem certeza que deseja excluir a ferramenta \"{{name}}\"? Esta ação não pode ser desfeita.",
+    "cancel": "Cancelar",
+    "confirm": "Excluir"
+  },
+  "permissions": {
+    "viewDenied": "Você não tem permissão para ver ferramentas personalizadas",
+    "createDenied": "Você não tem permissão para criar ferramentas personalizadas",
+    "editDenied": "Você não tem permissão para editar ferramentas personalizadas",
+    "deleteDenied": "Você não tem permissão para excluir ferramentas personalizadas"
+  }
+}

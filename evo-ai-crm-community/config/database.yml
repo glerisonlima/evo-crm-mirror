@@ -1,0 +1,44 @@
+default: &default
+  adapter: postgresql
+  encoding: unicode
+  host: <%= ENV.fetch('POSTGRES_HOST', 'localhost') %>
+  port: <%= ENV.fetch('POSTGRES_PORT', '5432') %>
+  # PgBouncer em TRANSACTION mode: prepared statements persistentes e advisory locks NÃO
+  # funcionam (a conexão de backend é trocada entre statements). Gated por env DB_PGBOUNCER:
+  # ligue (=true) só quando a conexão for via pooler em transaction mode (prod). Em dev/conn
+  # direta fica false (default), preservando o comportamento atual. Sem isto, transaction mode
+  # dá "prepared statement did not exist" (quebra auth/queries intermitentemente).
+  prepared_statements: <%= ENV.fetch('DB_PGBOUNCER', 'false') == 'true' ? 'false' : 'true' %>
+  advisory_locks: <%= ENV.fetch('DB_PGBOUNCER', 'false') == 'true' ? 'false' : 'true' %>
+   # ref: https://github.com/mperham/sidekiq/issues/2985#issuecomment-531097962
+  pool: <%= Sidekiq.server? ? ENV.fetch('SIDEKIQ_CONCURRENCY', 10) : ENV.fetch('RAILS_MAX_THREADS', 5) %>
+  # frequency in seconds to periodically run the Reaper, which attempts
+  # to find and recover connections from dead threads
+  reaping_frequency: <%= ENV.fetch('DB_POOL_REAPING_FREQUENCY', 30) %>
+  variables:
+    # we are setting this value to be close to the racktimeout value. we will iterate and reduce this value going forward
+    statement_timeout: <%= ENV["POSTGRES_STATEMENT_TIMEOUT"] || "14s" %>
+
+development:
+  <<: *default
+  database: "<%= ENV.fetch('POSTGRES_DATABASE', 'evo_community') %>"
+  username: "<%= ENV.fetch('POSTGRES_USERNAME', 'postgres') %>"
+  password: "<%= ENV.fetch('POSTGRES_PASSWORD', '') %>"
+
+test:
+  <<: *default
+  database: "<%= ENV.fetch('POSTGRES_DATABASE', 'evolution_test') %>"
+  username: "<%= ENV.fetch('POSTGRES_USERNAME', 'postgres') %>"
+  password: "<%= ENV.fetch('POSTGRES_PASSWORD', '') %>"
+
+staging:
+  <<: *default
+  database: "<%= ENV.fetch('POSTGRES_DATABASE', 'evo_community') %>"
+  username: "<%= ENV.fetch('POSTGRES_USERNAME', 'postgres') %>"
+  password: "<%= ENV.fetch('POSTGRES_PASSWORD', '') %>"
+
+production:
+  <<: *default
+  database: "<%= ENV.fetch('POSTGRES_DATABASE', 'evo_community') %>"
+  username: "<%= ENV.fetch('POSTGRES_USERNAME', 'postgres') %>"
+  password: "<%= ENV.fetch('POSTGRES_PASSWORD', '') %>"
