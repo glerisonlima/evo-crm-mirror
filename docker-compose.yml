@@ -120,7 +120,7 @@ services:
       dockerfile: docker/Dockerfile
       args:
         BUNDLE_WITHOUT: ""
-        RAILS_ENV: production
+        RAILS_ENV: development
         RAILS_SERVE_STATIC_FILES: "false"
     restart: unless-stopped
     ports:
@@ -165,7 +165,7 @@ services:
       dockerfile: docker/Dockerfile
       args:
         BUNDLE_WITHOUT: ""
-        RAILS_ENV: production
+        RAILS_ENV: development
         RAILS_SERVE_STATIC_FILES: "false"
     restart: unless-stopped
     env_file: .env
